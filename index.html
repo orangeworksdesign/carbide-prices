@@ -72,6 +72,8 @@
     margin:10px 0 2px;
   }
   .readout .unit{font-size:.26em;color:var(--swarf);text-shadow:none;letter-spacing:.05em;margin-left:.4em}
+  .subreadout{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--swarf);font-size:1.05rem;margin:2px 0 4px;letter-spacing:.02em}
+  .subreadout b{color:var(--edge);font-weight:700}
   .delta{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--swarf)}
   .delta b{font-weight:500}
   .delta .up{color:var(--up)} .delta .down{color:var(--down)}
@@ -115,6 +117,7 @@
 <script>
 const KG_PER_LB = 0.45359237;
 const fmt = (n, d=4) => Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmt2 = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
 function render(rows){
@@ -127,32 +130,36 @@ function render(rows){
   const latest = rows[rows.length-1];
   const prev = rows.length>1 ? rows[rows.length-2] : null;
   const cur = latest.currency || 'USD';
-  const perLb = latest.price_per_lb ?? (latest.price_per_kg*KG_PER_LB);
+  const perKg = latest.price_per_kg;
+  const perLb = latest.price_per_lb ?? (perKg*KG_PER_LB);
+  const basis = latest.quote_weight_kg ?? latest.weight_kg ?? 50;
 
   let deltaHtml = '<span class="mono">—</span> first reading';
   if(prev){
-    const d = latest.price_per_kg - prev.price_per_kg;
-    const pct = (d/prev.price_per_kg)*100;
+    const prevLb = prev.price_per_lb ?? (prev.price_per_kg*KG_PER_LB);
+    const d = perLb - prevLb;
+    const pct = (d/prevLb)*100;
     const cls = d>0?'up':d<0?'down':'';
     const arr = d>0?'▲':d<0?'▼':'■';
-    deltaHtml = `<b class="${cls}">${arr} ${fmt(Math.abs(d))}/kg (${fmt(Math.abs(pct),2)}%)</b> since ${fmtDate(prev.date)}`;
+    deltaHtml = `<b class="${cls}">${arr} ${fmt2(Math.abs(d))}/lb (${fmt2(Math.abs(pct))}%)</b> since ${fmtDate(prev.date)}`;
   }
 
   app.innerHTML = `
     <section class="dro">
       <div class="dro-label"><span class="dot"></span> Last reading &middot; ${fmtDate(latest.date)}</div>
-      <div class="readout"><span data-count="${latest.price_per_kg}">0.0000</span><span class="unit">${cur}/kg</span></div>
+      <div class="readout"><span data-count="${perLb}">0.00</span><span class="unit">${cur}/lb</span></div>
+      <div class="subreadout"><b>${fmt2(perKg)}</b> ${cur}/kg</div>
       <div class="delta">${deltaHtml}</div>
       <div class="axes">
-        <div class="axis"><div class="k">Per pound</div><div class="v">${fmt(perLb)} ${cur}</div></div>
-        <div class="axis"><div class="k">${fmt(latest.weight_kg,0)} kg quote</div><div class="v">${fmt(latest.price,2)} ${cur}</div></div>
+        <div class="axis"><div class="k">Rate basis</div><div class="v">${fmt(basis,0)} kg lot</div></div>
+        <div class="axis"><div class="k">Currency</div><div class="v">${cur}</div></div>
         <div class="axis"><div class="k">Readings</div><div class="v">${rows.length}</div></div>
       </div>
     </section>
 
     <section class="chart-wrap">
       <div class="chart-head">
-        <h2>Price / kg &middot; trend</h2>
+        <h2>Price / lb &middot; trend</h2>
         <span class="n">${fmtDate(rows[0].date)} → ${fmtDate(latest.date)}</span>
       </div>
       <div class="canvas-box"><canvas id="chart"></canvas></div>
@@ -160,7 +167,7 @@ function render(rows){
 
   document.getElementById('updated').textContent = 'Updated ' + (latest.timestamp ? new Date(latest.timestamp).toLocaleString('en-US') : fmtDate(latest.date));
 
-  countUp(latest.price_per_kg);
+  countUp(perLb);
   drawChart(rows, cur);
 }
 
@@ -172,7 +179,7 @@ function countUp(target){
   (function step(t){
     const k = Math.min(1,(t-t0)/dur);
     const e = 1-Math.pow(1-k,3); // easeOut, like an axis settling
-    el.textContent = fmt(target*e);
+    el.textContent = fmt2(target*e);
     if(k<1) requestAnimationFrame(step);
   })(t0);
 }
@@ -192,7 +199,8 @@ function drawChart(rows, cur){
     data:{
       labels:rows.map(r=>fmtDate(r.date)),
       datasets:[{
-        data:rows.map(r=>r.price_per_kg),
+        data:rows.map(r=>r.price_per_lb ?? (r.price_per_kg*KG_PER_LB)),
+        kg:rows.map(r=>r.price_per_kg),
         borderColor:amber, borderWidth:2,
         backgroundColor:grad, fill:true,
         tension:.25,
@@ -208,13 +216,14 @@ function drawChart(rows, cur){
           titleColor:swarf, bodyColor:amber,
           titleFont:{family:'JetBrains Mono',size:10}, bodyFont:{family:'JetBrains Mono',size:13,weight:'700'},
           padding:10, displayColors:false,
-          callbacks:{label:c=>fmt(c.parsed.y)+' '+cur+'/kg'}
+          callbacks:{label:c=>[fmt2(c.parsed.y)+' '+cur+'/lb',
+                               fmt2(c.dataset.kg[c.dataIndex])+' '+cur+'/kg']}
         }},
       scales:{
         x:{grid:{color:grid,drawTicks:false},border:{color:grid},
            ticks:{color:swarf,font:{family:'JetBrains Mono',size:10},maxRotation:0,autoSkipPadding:18}},
         y:{grid:{color:grid,drawTicks:false},border:{color:grid},
-           ticks:{color:swarf,font:{family:'JetBrains Mono',size:10},callback:v=>fmt(v,2)}}
+           ticks:{color:swarf,font:{family:'JetBrains Mono',size:10},callback:v=>fmt2(v)}}
       }
     }
   });
