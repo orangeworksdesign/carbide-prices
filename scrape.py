@@ -137,24 +137,25 @@ def run(login_mode: bool) -> None:
             if "price" not in quote:
                 fail(f"Unexpected response shape: {quote!r}")
 
-            weight = float(quote["netWeight"]["value"])
-            price = float(quote["price"])
-            per_kg = round(price / weight, 4)
-            per_lb = round(per_kg * KG_PER_LB, 4)
+            # The quote's "price" field is already the per-kg rate. It can vary
+            # with the submitted weight, so we always quote the same QUOTE_VALUE
+            # to keep readings comparable. Convert to per-lb for the page.
+            quote_weight = float(quote["netWeight"]["value"])
+            price_per_kg = round(float(quote["price"]), 4)
+            price_per_lb = round(price_per_kg * KG_PER_LB, 4)
             now = datetime.datetime.now()
 
             row = {
                 "date": now.date().isoformat(),
                 "timestamp": now.isoformat(timespec="seconds"),
-                "price": price,
                 "currency": quote.get("currency", "USD"),
-                "weight_kg": weight,
-                "price_per_kg": per_kg,
-                "price_per_lb": per_lb,
+                "quote_weight_kg": quote_weight,
+                "price_per_kg": price_per_kg,
+                "price_per_lb": price_per_lb,
             }
             save_row(row)
-            print(f"{row['date']}: {price} {row['currency']} / {weight:g}kg "
-                  f"= {per_kg}/kg ({per_lb}/lb)")
+            print(f"{row['date']}: {price_per_kg} {row['currency']}/kg "
+                  f"({price_per_lb}/lb) at {quote_weight:g}kg")
         finally:
             ctx.close()
 

@@ -1,0 +1,18 @@
+[
+  {
+    "date": "2026-06-14",
+    "timestamp": "2026-06-14T12:00:00",
+    "currency": "USD",
+    "quote_weight_kg": 50.0,
+    "price_per_kg": 69.71,
+    "price_per_lb": 31.6199
+  },
+  {
+    "date": "2026-06-15",
+    "timestamp": "2026-06-15T06:05:00",
+    "currency": "USD",
+    "quote_weight_kg": 50.0,
+    "price_per_kg": 69.71,
+    "price_per_lb": 31.6199
+  }
+]
