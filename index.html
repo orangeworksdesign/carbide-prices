@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carbide Scrap — Orangeworks Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --graphite:#16181b;
+    --steel:#212428;
+    --steel-2:#1b1e21;
+    --edge-line:#34383d;
+    --swarf:#71777e;
+    --edge:#d4d8dc;
+    --amber:#ffb000;
+    --amber-dim:rgba(255,176,0,.14);
+    --amber-line:rgba(255,176,0,.4);
+    --down:#ff5c5c;
+    --up:#46c98b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--graphite);
+    color:var(--edge);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    line-height:1.5;
+    padding:clamp(20px,5vw,56px);
+    max-width:920px;
+    margin:0 auto;
+    /* faint machined-surface texture */
+    background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px);
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+  /* ---- header ---- */
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;border-bottom:1px solid var(--edge-line);padding-bottom:18px}
+  .brand{font-weight:700;letter-spacing:-.01em;font-size:1.05rem}
+  .brand span{color:var(--swarf);font-weight:400}
+  .subject{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--swarf)}
+
+  /* ---- DRO readout panel (the signature) ---- */
+  .dro{
+    margin-top:28px;
+    background:linear-gradient(180deg,var(--steel),var(--steel-2));
+    border:1px solid var(--edge-line);
+    border-radius:10px;
+    padding:clamp(20px,4vw,34px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 18px 40px -28px rgba(0,0,0,.8);
+    position:relative;
+    overflow:hidden;
+  }
+  .dro::after{ /* scanlines on the readout glass */
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px);
+    opacity:.35;mix-blend-mode:multiply;
+  }
+  .dro-label{display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--swarf)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .readout{
+    font-family:'JetBrains Mono',monospace;font-weight:700;
+    color:var(--amber);
+    font-size:clamp(3.4rem,13vw,6.2rem);
+    line-height:1;letter-spacing:.01em;
+    text-shadow:0 0 18px rgba(255,176,0,.45);
+    margin:10px 0 2px;
+  }
+  .readout .unit{font-size:.26em;color:var(--swarf);text-shadow:none;letter-spacing:.05em;margin-left:.4em}
+  .delta{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--swarf)}
+  .delta b{font-weight:500}
+  .delta .up{color:var(--up)} .delta .down{color:var(--down)}
+
+  .axes{display:flex;flex-wrap:wrap;gap:1px;margin-top:24px;background:var(--edge-line);border:1px solid var(--edge-line);border-radius:7px;overflow:hidden}
+  .axis{flex:1 1 140px;background:var(--steel-2);padding:13px 16px}
+  .axis .k{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--swarf)}
+  .axis .v{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:1.05rem;color:var(--edge);margin-top:4px}
+
+  /* ---- chart ---- */
+  .chart-wrap{margin-top:34px}
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .chart-head h2{font-size:.82rem;font-family:'JetBrains Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--swarf);font-weight:500}
+  .chart-head .n{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--swarf)}
+  .canvas-box{background:var(--steel-2);border:1px solid var(--edge-line);border-radius:10px;padding:16px 14px 10px;height:320px}
+
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--edge-line);font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--swarf);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  footer a{color:var(--swarf)}
+
+  .empty{margin-top:28px;background:var(--steel-2);border:1px dashed var(--edge-line);border-radius:10px;padding:32px;text-align:center;color:var(--swarf);font-family:'JetBrains Mono',monospace;font-size:.85rem}
+
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Orangeworks Design <span>/ scrap carbide</span></div>
+  <div class="subject">Sandvik Coromant buyback &middot; tungsten carbide</div>
+</header>
+
+<main id="app">
+  <div class="empty mono">Loading readings&hellip;</div>
+</main>
+
+<footer>
+  <span>Source: Sandvik Coromant recycling quote &middot; self-logged</span>
+  <span id="updated"></span>
+</footer>
+
+<script>
+const KG_PER_LB = 0.45359237;
+const fmt = (n, d=4) => Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+function render(rows){
+  const app = document.getElementById('app');
+  if(!rows || !rows.length){
+    app.innerHTML = '<div class="empty">No readings logged yet. Run <b>scrape.py</b> on the shop box to record the first price.</div>';
+    return;
+  }
+  rows = rows.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const latest = rows[rows.length-1];
+  const prev = rows.length>1 ? rows[rows.length-2] : null;
+  const cur = latest.currency || 'USD';
+  const perLb = latest.price_per_lb ?? (latest.price_per_kg*KG_PER_LB);
+
+  let deltaHtml = '<span class="mono">—</span> first reading';
+  if(prev){
+    const d = latest.price_per_kg - prev.price_per_kg;
+    const pct = (d/prev.price_per_kg)*100;
+    const cls = d>0?'up':d<0?'down':'';
+    const arr = d>0?'▲':d<0?'▼':'■';
+    deltaHtml = `<b class="${cls}">${arr} ${fmt(Math.abs(d))}/kg (${fmt(Math.abs(pct),2)}%)</b> since ${fmtDate(prev.date)}`;
+  }
+
+  app.innerHTML = `
+    <section class="dro">
+      <div class="dro-label"><span class="dot"></span> Last reading &middot; ${fmtDate(latest.date)}</div>
+      <div class="readout"><span data-count="${latest.price_per_kg}">0.0000</span><span class="unit">${cur}/kg</span></div>
+      <div class="delta">${deltaHtml}</div>
+      <div class="axes">
+        <div class="axis"><div class="k">Per pound</div><div class="v">${fmt(perLb)} ${cur}</div></div>
+        <div class="axis"><div class="k">${fmt(latest.weight_kg,0)} kg quote</div><div class="v">${fmt(latest.price,2)} ${cur}</div></div>
+        <div class="axis"><div class="k">Readings</div><div class="v">${rows.length}</div></div>
+      </div>
+    </section>
+
+    <section class="chart-wrap">
+      <div class="chart-head">
+        <h2>Price / kg &middot; trend</h2>
+        <span class="n">${fmtDate(rows[0].date)} → ${fmtDate(latest.date)}</span>
+      </div>
+      <div class="canvas-box"><canvas id="chart"></canvas></div>
+    </section>`;
+
+  document.getElementById('updated').textContent = 'Updated ' + (latest.timestamp ? new Date(latest.timestamp).toLocaleString('en-US') : fmtDate(latest.date));
+
+  countUp(latest.price_per_kg);
+  drawChart(rows, cur);
+}
+
+function countUp(target){
+  const el = document.querySelector('.readout [data-count]');
+  if(!el) return;
+  if(window.matchMedia('(prefers-reduced-motion:reduce)').matches){ el.textContent = fmt(target); return; }
+  const dur = 700, t0 = performance.now();
+  (function step(t){
+    const k = Math.min(1,(t-t0)/dur);
+    const e = 1-Math.pow(1-k,3); // easeOut, like an axis settling
+    el.textContent = fmt(target*e);
+    if(k<1) requestAnimationFrame(step);
+  })(t0);
+}
+
+function drawChart(rows, cur){
+  const ctx = document.getElementById('chart');
+  const css = getComputedStyle(document.documentElement);
+  const amber = css.getPropertyValue('--amber').trim();
+  const swarf = css.getPropertyValue('--swarf').trim();
+  const grid  = css.getPropertyValue('--edge-line').trim();
+  const grad = ctx.getContext('2d').createLinearGradient(0,0,0,300);
+  grad.addColorStop(0,'rgba(255,176,0,.22)');
+  grad.addColorStop(1,'rgba(255,176,0,0)');
+
+  new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:rows.map(r=>fmtDate(r.date)),
+      datasets:[{
+        data:rows.map(r=>r.price_per_kg),
+        borderColor:amber, borderWidth:2,
+        backgroundColor:grad, fill:true,
+        tension:.25,
+        pointRadius:rows.length>40?0:3, pointBackgroundColor:amber,
+        pointHoverRadius:5,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{
+          backgroundColor:'#16181b', borderColor:grid, borderWidth:1,
+          titleColor:swarf, bodyColor:amber,
+          titleFont:{family:'JetBrains Mono',size:10}, bodyFont:{family:'JetBrains Mono',size:13,weight:'700'},
+          padding:10, displayColors:false,
+          callbacks:{label:c=>fmt(c.parsed.y)+' '+cur+'/kg'}
+        }},
+      scales:{
+        x:{grid:{color:grid,drawTicks:false},border:{color:grid},
+           ticks:{color:swarf,font:{family:'JetBrains Mono',size:10},maxRotation:0,autoSkipPadding:18}},
+        y:{grid:{color:grid,drawTicks:false},border:{color:grid},
+           ticks:{color:swarf,font:{family:'JetBrains Mono',size:10},callback:v=>fmt(v,2)}}
+      }
+    }
+  });
+}
+
+fetch('./data/prices.json',{cache:'no-store'})
+  .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(()=>render([]));
+</script>
+</body>
+</html>
