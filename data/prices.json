@@ -758,5 +758,13 @@
     "quote_weight_kg": 50.0,
     "price_per_kg": 63.96,
     "price_per_lb": 29.0118
+  },
+  {
+    "date": "2026-10-13",
+    "timestamp": "2026-10-13T06:05:05",
+    "currency": "USD",
+    "quote_weight_kg": 50.0,
+    "price_per_kg": 63.85,
+    "price_per_lb": 28.9619
   }
 ]
